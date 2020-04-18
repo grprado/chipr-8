@@ -121,6 +121,9 @@ impl Chip8 {
     }
 
     pub fn execute_cycle(&mut self) {
+        self.calculate_delta();
+        self.run_multimedia();
+
         if self.hit_min_delta_duration() {
             self.fetch();
             self.execute();
@@ -193,12 +196,7 @@ impl Chip8 {
         self.opcode = self.memory.read_u16(self.pc as usize);
     }
 
-    fn calculate_delta(&mut self) {
-        let now = time::Instant::now();
-        let delta = now.duration_since(self.time);
-        self.time = now;
-        self.delta += delta;
-        self.timer_delta += delta;
+    fn run_multimedia(&mut self) {
         if self.timer_delta > CLOCK_60_HZ {
             if self.delay_timer > 0 {
                 self.delay_timer -= 1;
@@ -222,8 +220,15 @@ impl Chip8 {
         }
     }
 
+    fn calculate_delta(&mut self) {
+        let now = time::Instant::now();
+        let delta = now.duration_since(self.time);
+        self.time = now;
+        self.delta += delta;
+        self.timer_delta += delta;
+    }
+
     fn hit_min_delta_duration(&mut self) -> bool {
-        self.calculate_delta();
         if self.delta > Duration::from_micros(MIN_CYCLE_DURATION_MICROS) {
             self.delta = Duration::from_nanos(0);
             return true;
