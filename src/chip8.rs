@@ -50,8 +50,10 @@ pub struct Chip8 {
 }
 
 const CLOCK_60_HZ: Duration = Duration::from_micros(16666);
+const DEFAULT_SLEEP_DURATION: Duration = Duration::from_micros(10);
 
 impl Chip8 {
+
     pub fn new(multimedia :Multimedia) -> Chip8 {
         let mm = Rc::new(RefCell::new(multimedia));
         Chip8 {
@@ -129,7 +131,7 @@ impl Chip8 {
             self.execute();
             self.pc += 2;
         } else {
-            std::thread::sleep(Duration::from_micros(10));
+            std::thread::sleep(DEFAULT_SLEEP_DURATION);
         }
 
     }
@@ -210,13 +212,17 @@ impl Chip8 {
                 self.sound_timer -= 1;
             }
 
-            self.drawable.borrow_mut().draw(&mut self.gfx);
-            self.event_manager.borrow_mut().check_events();
-            if self.event_manager.borrow_mut().is_quiting() {
-                self.shutdown();
-            }
+            self.draw_and_check_events();
 
             self.timer_delta = Duration::from_micros((self.timer_delta.as_micros() % CLOCK_60_HZ.as_micros()) as u64);
+        }
+    }
+
+    fn draw_and_check_events(&mut self) {
+        self.drawable.borrow_mut().draw(&mut self.gfx);
+        self.event_manager.borrow_mut().check_events();
+        if self.event_manager.borrow_mut().is_quiting() {
+            self.shutdown();
         }
     }
 
@@ -526,9 +532,22 @@ impl Chip8 {
     /// A key press is awaited, and then stored in VX.
     /// (Blocking Operation. All instruction halted until next key event)
     ///
-    // just a mock
     fn get_key(&mut self) {
         let x = (self.opcode & 0x0F00) as usize >> 8;
+        let mut waiting = true;
+        while self.is_on && waiting {
+            self.draw_and_check_events();
+            for i in 0..0xF {
+                if self.event_manager.borrow().is_key_pressed(i) {
+                    self.v[x] = i;
+                    waiting = false;
+                    break
+                }
+            }
+            if waiting {
+                std::thread::sleep(DEFAULT_SLEEP_DURATION);
+            }
+        }
         self.v[x] = thread_rng().gen()
     }
 

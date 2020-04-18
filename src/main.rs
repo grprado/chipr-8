@@ -12,7 +12,7 @@ fn main() {
             let rom_file = &args[1];
             Some(rom_file)
         } else if cfg!(debug_assertions) {
-            Some("roms/PONG2.ch8")
+            Some("roms/rom.ch8")
         } else {
             None
         };

@@ -4,7 +4,7 @@ use sdl2::keyboard::Keycode;
 
 pub struct Input {
     event_pump: EventPump,
-    keys: [bool; 0xF],
+    keys: [bool; 16],
     is_quiting: bool,
 }
 
@@ -16,7 +16,7 @@ pub trait EventManager {
 
 impl EventManager for Input {
     fn check_events(&mut self) {
-        self.keys = [false; 0xF];
+        self.keys = [false; 16];
 
         for event in self.event_pump.poll_iter() {
             match event {
@@ -68,7 +68,7 @@ impl Input {
         let event_pump = sdl_context.event_pump().unwrap();
         Input {
             event_pump,
-            keys: [false; 0xF],
+            keys: [false; 16],
             is_quiting: false,
         }
     }
