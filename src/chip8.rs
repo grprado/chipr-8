@@ -8,18 +8,17 @@ use gfx::Gfx;
 use memory::Memory;
 use register::Registers;
 
-use crate::multimedia::Multimedia;
+use crate::multimedia::input::EventManager;
 use crate::multimedia::screen::Drawable;
 use crate::multimedia::sound::Beeper;
-use crate::multimedia::input::EventManager;
-use std::rc::Rc;
+use crate::multimedia::Multimedia;
 use std::cell::RefCell;
+use std::rc::Rc;
 
-
-mod memory;
-pub mod gfx;
-mod register;
 mod font;
+pub mod gfx;
+mod memory;
+mod register;
 
 const STACK_SIZE: usize = 16;
 
@@ -46,15 +45,14 @@ pub struct Chip8 {
     drawable: Rc<RefCell<dyn Drawable>>,
     beeper: Rc<RefCell<dyn Beeper>>,
     event_manager: Rc<RefCell<dyn EventManager>>,
-    is_on: bool
+    is_on: bool,
 }
 
 const CLOCK_60_HZ: Duration = Duration::from_micros(16666);
 const DEFAULT_SLEEP_DURATION: Duration = Duration::from_micros(10);
 
 impl Chip8 {
-
-    pub fn new(multimedia :Multimedia) -> Chip8 {
+    pub fn new(multimedia: Multimedia) -> Chip8 {
         let mm = Rc::new(RefCell::new(multimedia));
         Chip8 {
             opcode: 0,
@@ -74,7 +72,7 @@ impl Chip8 {
             drawable: Rc::clone(&mm) as Rc<RefCell<dyn Drawable>>,
             beeper: Rc::clone(&mm) as Rc<RefCell<dyn Beeper>>,
             event_manager: mm as Rc<RefCell<dyn EventManager>>,
-            is_on: true
+            is_on: true,
         }
     }
 
@@ -133,20 +131,17 @@ impl Chip8 {
         } else {
             std::thread::sleep(DEFAULT_SLEEP_DURATION);
         }
-
     }
 
     fn execute(&mut self) {
         let op = self.opcode & 0xF000;
 
         match op {
-            0x0000 => {
-                match self.opcode {
-                    0x00E0 => self.clear_gfx(),
-                    0x00EE => self.unstack(),
-                    _ => panic!("code {:X} not implemented", self.opcode)
-                }
-            }
+            0x0000 => match self.opcode {
+                0x00E0 => self.clear_gfx(),
+                0x00EE => self.unstack(),
+                _ => panic!("code {:X} not implemented", self.opcode),
+            },
             0x1000 => self.goto(),
             0x2000 => self.subroutine(),
             0x3000 => self.jmp_eq(),
@@ -164,8 +159,8 @@ impl Chip8 {
                 0x6 => self.shift_r(),
                 0x7 => self.sub_vy_vx(),
                 0xE => self.shift_l(),
-                _ => panic!("code {:X} - {:X} not implemented", op, self.opcode)
-            }
+                _ => panic!("code {:X} - {:X} not implemented", op, self.opcode),
+            },
             0x9000 => self.jmp_vx_neq_vy(),
             0xA000 => self.set_i_nnn(),
             0xB000 => self.jmp_nnn(),
@@ -174,8 +169,8 @@ impl Chip8 {
             0xE000 => match self.opcode & 0x00FF {
                 0x9E => self.skip_if_pressed(),
                 0xA1 => self.skip_not_pressed(),
-                _ => panic!("code {:X} - {:X} not implemented", op, self.opcode)
-            }
+                _ => panic!("code {:X} - {:X} not implemented", op, self.opcode),
+            },
             0xF000 => match self.opcode & 0x00FF {
                 0x07 => self.vx_get_delay(),
                 0x0A => self.get_key(),
@@ -186,8 +181,8 @@ impl Chip8 {
                 0x33 => self.bin_dec_vx(),
                 0x55 => self.reg_dump(),
                 0x65 => self.reg_load(),
-                _ => panic!("code {:X} - {:X} not implemented", op, self.opcode)
-            }
+                _ => panic!("code {:X} - {:X} not implemented", op, self.opcode),
+            },
 
             _ => {
                 self.dump();
@@ -216,7 +211,9 @@ impl Chip8 {
 
             self.draw_and_check_events();
 
-            self.timer_delta = Duration::from_micros((self.timer_delta.as_micros() % CLOCK_60_HZ.as_micros()) as u64);
+            self.timer_delta = Duration::from_micros(
+                (self.timer_delta.as_micros() % CLOCK_60_HZ.as_micros()) as u64,
+            );
         }
     }
 
@@ -260,7 +257,6 @@ impl Chip8 {
         self.pc = self.stack[self.sp];
         self.stack[self.sp] = 0;
     }
-
 
     /// 1NNN<br>
     ///	goto NNN<br>
@@ -563,7 +559,7 @@ impl Chip8 {
                 if self.event_manager.borrow().is_key_pressed(i) {
                     self.v[x] = i;
                     waiting = false;
-                    break
+                    break;
                 }
             }
             if waiting {
@@ -590,7 +586,6 @@ impl Chip8 {
         let x = (self.opcode & 0x0F00) as usize >> 8;
         self.sound_timer = self.v[x];
     }
-
 
     /// FX1E
     /// MEM
