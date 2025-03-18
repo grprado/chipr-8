@@ -162,11 +162,13 @@ impl Chip8 {
                 0x4 => self.add_vx_vy(),
                 0x5 => self.sub_vx_vy(),
                 0x6 => self.shift_r(),
+                0x7 => self.sub_vy_vx(),
                 0xE => self.shift_l(),
                 _ => panic!("code {:X} - {:X} not implemented", op, self.opcode)
             }
             0x9000 => self.jmp_vx_neq_vy(),
             0xA000 => self.set_i_nnn(),
+            0xB000 => self.jmp_nnn(),
             0xC000 => self.rand(),
             0xD000 => self.draw(),
             0xE000 => match self.opcode & 0x00FF {
@@ -387,12 +389,9 @@ impl Chip8 {
     fn add_vx_vy(&mut self) {
         let x = (self.opcode & 0x0F00) as usize >> 8;
         let y = (self.opcode & 0x00F0) as usize >> 4;
-        let mut result = self.v[x] as u16 + self.v[y] as u16;
-        if result > 0xFF {
-            self.v[0xF] = 1;
-            result &= 0xFF;
-        }
-        self.v[x] = result as u8;
+        let result = self.v[x] as u16 + self.v[y] as u16;
+        self.v[x] = (result & 0xFF) as u8;
+        self.v[0xF] = (result >> 8) as u8;
     }
 
     /// 8XY5
@@ -409,8 +408,8 @@ impl Chip8 {
             self.v[0xF] = 1;
         } else {
             let result = 256u16 + self.v[x] as u16 - self.v[y] as u16;
-            self.v[0xF] = 0;
             self.v[x] = result as u8;
+            self.v[0xF] = 0;
         }
     }
 
@@ -423,6 +422,25 @@ impl Chip8 {
         let register = ((self.opcode & 0x0F00) >> 8) as usize;
         self.v[0xF] = self.v[register] & 0b1;
         self.v[register] = self.v[register] >> 1;
+    }
+
+    /// 8XY7
+    ///
+    /// Vx = Vy - Vx
+    ///
+    /// Sets VX to VY minus VX. VF is set to 0 when there's an underflow, and 1 when there is not. (i.e. VF set to 1 if VY >= VX).
+    fn sub_vy_vx(&mut self) {
+        let x = (self.opcode & 0x0F00) as usize >> 8;
+        let y = (self.opcode & 0x00F0) as usize >> 4;
+
+        if self.v[x] <= self.v[y] {
+            self.v[x] = self.v[y] - self.v[x];
+            self.v[0xF] = 1;
+        } else {
+            let result = 256u16 + self.v[y] as u16 - self.v[x] as u16;
+            self.v[x] = result as u8;
+            self.v[0xF] = 0;
+        }
     }
 
     /// 8XYE
@@ -454,6 +472,10 @@ impl Chip8 {
     ///	Sets I to the address NNN.
     fn set_i_nnn(&mut self) {
         self.i = self.opcode & 0x0FFF;
+    }
+
+    fn jmp_nnn(&mut self) {
+        self.pc = (self.opcode & 0x0FFF) + self.v[0] as u16;
     }
 
     /// CXNN
